@@ -16,8 +16,11 @@
   <nav class="tabs">
     <button class="tab-btn active" data-tab="overview">Overview</button>
     <button class="tab-btn" data-tab="health">Health Metrics</button>
+    <button class="tab-btn" data-tab="diet">Diet</button>
     <button class="tab-btn" data-tab="symptoms">Symptoms</button>
     <button class="tab-btn" data-tab="mood">Mood</button>
+    <button class="tab-btn" data-tab="habits">Habits</button>
+    <button class="tab-btn" data-tab="correlations">Correlations</button>
   </nav>
 
   <main>
@@ -47,6 +50,18 @@
       </div>
     </section>
 
+    <section id="diet" class="tab-panel">
+      <p class="muted">Auto-detected diet-related columns from your Health sheet. If Health Auto Export hasn't added diet columns yet, this will be empty.</p>
+      <div class="card-grid" id="dietCards"></div>
+      <div class="chart-card">
+        <h3>Diet Trends — Last 30 Days</h3>
+        <canvas id="dietChart"></canvas>
+      </div>
+      <div class="table-wrap">
+        <table id="dietTable"></table>
+      </div>
+    </section>
+
     <section id="symptoms" class="tab-panel">
       <div class="table-wrap">
         <table id="symptomsTable"></table>
@@ -60,6 +75,54 @@
       </div>
       <div class="table-wrap">
         <table id="moodTable"></table>
+      </div>
+    </section>
+
+    <section id="habits" class="tab-panel">
+      <div class="chart-card">
+        <h3>Log Today's Habits</h3>
+        <form id="habitForm">
+          <div class="form-row">
+            <label>Date <input type="date" id="habitDate" required></label>
+          </div>
+          <div id="habitFieldsContainer" class="form-grid">
+            <label class="habit-toggle"><input type="checkbox" name="Read"> Read</label>
+            <label class="habit-toggle"><input type="checkbox" name="Exercised"> Exercised</label>
+            <label class="habit-toggle"><input type="checkbox" name="Meditated"> Meditated</label>
+            <label class="habit-toggle"><input type="checkbox" name="Journaled"> Journaled</label>
+            <label class="habit-toggle"><input type="checkbox" name="Alcohol"> Alcohol</label>
+            <label class="habit-toggle"><input type="checkbox" name="Caffeine"> Caffeine</label>
+          </div>
+          <div class="form-row">
+            <label>Add custom habit name <input type="text" id="newHabitName" placeholder="e.g. Stretched"></label>
+            <button type="button" id="addHabitBtn">+ Add</button>
+          </div>
+          <button type="submit" id="habitSubmitBtn">Save Entry</button>
+          <span id="habitStatus" class="muted"></span>
+        </form>
+      </div>
+      <div class="table-wrap">
+        <table id="habitsTable"></table>
+      </div>
+    </section>
+
+    <section id="correlations" class="tab-panel">
+      <p class="muted">Pearson correlation across all numeric fields (Health, Mood valence, Habits), joined by date. Rows are sorted by strength; a p-value under 0.05 is flagged significant.</p>
+      <div class="controls">
+        <label>Min |r| to show:
+          <select id="corrThreshold">
+            <option value="0">All</option>
+            <option value="0.2">0.2+</option>
+            <option value="0.4" selected>0.4+</option>
+            <option value="0.6">0.6+</option>
+          </select>
+        </label>
+        <label style="margin-left: 16px;">
+          <input type="checkbox" id="sigOnly"> Significant only (p &lt; 0.05)
+        </label>
+      </div>
+      <div class="table-wrap">
+        <table id="correlationTable"></table>
       </div>
     </section>
   </main>
