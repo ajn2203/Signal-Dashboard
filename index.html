@@ -20,6 +20,7 @@
     <button class="tab-btn" data-tab="symptoms">Symptoms</button>
     <button class="tab-btn" data-tab="mood">Mood</button>
     <button class="tab-btn" data-tab="habits">Habits</button>
+    <button class="tab-btn" data-tab="screentime">Screen Time</button>
     <button class="tab-btn" data-tab="correlations">Correlations</button>
   </nav>
 
@@ -104,6 +105,27 @@
       </div>
       <div class="table-wrap">
         <table id="habitsTable"></table>
+      </div>
+    </section>
+
+    <section id="screentime" class="tab-panel">
+      <div class="chart-card">
+        <h3>Log Screen Time</h3>
+        <form id="screenTimeForm">
+          <div class="form-row">
+            <label>Date <input type="date" id="screenTimeDate" required></label>
+            <label>Total minutes <input type="number" id="screenTimeMinutes" min="0" step="1" required style="width:100px;"></label>
+          </div>
+          <button type="submit" id="screenTimeSubmitBtn">Save Entry</button>
+          <span id="screenTimeStatus" class="muted"></span>
+        </form>
+      </div>
+      <div class="chart-card">
+        <h3>Screen Time — Last 30 Days</h3>
+        <canvas id="screenTimeChart"></canvas>
+      </div>
+      <div class="table-wrap">
+        <table id="screenTimeTable"></table>
       </div>
     </section>
 
