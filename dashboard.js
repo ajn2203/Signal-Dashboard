@@ -389,6 +389,8 @@ function renderCorrelationsTab() {
   for (let i = 0; i < fields.length; i++) {
     for (let j = i + 1; j < fields.length; j++) {
       const fieldA = fields[i], fieldB = fields[j];
+      if (isRedundantPair(fieldA, fieldB)) continue;
+
       const pairs = joined
         .filter(row => typeof row[fieldA] === 'number' && typeof row[fieldB] === 'number')
         .map(row => [row[fieldA], row[fieldB]]);
@@ -427,6 +429,27 @@ function renderCorrelationsTab() {
     </tr>
   `).join('')}</tbody>`;
   table.innerHTML = thead + tbody;
+}
+
+// Groups of fields that are trivially related by definition (sub-components of
+// the same measurement, or min/max/avg of the same underlying metric). Any pair
+// where both fields fall in the same group is skipped, since a high correlation
+// there reflects arithmetic, not behavior.
+const REDUNDANT_GROUPS = [
+  ['Sleep Analysis [Total] (hr)', 'Sleep Analysis [Asleep] (hr)', 'Sleep Analysis [In Bed] (hr)',
+   'Sleep Analysis [Core] (hr)', 'Sleep Analysis [Deep] (hr)', 'Sleep Analysis [REM] (hr)',
+   'Sleep Analysis [Awake] (hr)'],
+  ['Heart Rate [Min] (count/min)', 'Heart Rate [Max] (count/min)', 'Heart Rate [Avg] (count/min)',
+   'Resting Heart Rate (count/min)', 'Walking Heart Rate Average (count/min)'],
+  ['Active Energy (kcal)', 'Resting Energy (kcal)'],
+  ['Apple Stand Hour (count)', 'Apple Stand Time (min)'],
+  ['Walking Speed (mi/hr)', 'Walking Step Length (in)', 'Walking + Running Distance (mi)',
+   'Walking Asymmetry Percentage (%)', 'Walking Double Support Percentage (%)'],
+  ['Stair Speed: Down (ft/s)', 'Stair Speed: Up (ft/s)', 'Flights Climbed (count)']
+];
+
+function isRedundantPair(fieldA, fieldB) {
+  return REDUNDANT_GROUPS.some(group => group.includes(fieldA) && group.includes(fieldB));
 }
 
 // ====== HELPERS ======
