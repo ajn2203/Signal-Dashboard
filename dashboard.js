@@ -441,11 +441,12 @@ const REDUNDANT_GROUPS = [
    'Sleep Analysis [Awake] (hr)'],
   ['Heart Rate [Min] (count/min)', 'Heart Rate [Max] (count/min)', 'Heart Rate [Avg] (count/min)',
    'Resting Heart Rate (count/min)', 'Walking Heart Rate Average (count/min)'],
-  ['Active Energy (kcal)', 'Resting Energy (kcal)'],
-  ['Apple Stand Hour (count)', 'Apple Stand Time (min)'],
-  ['Walking Speed (mi/hr)', 'Walking Step Length (in)', 'Walking + Running Distance (mi)',
-   'Walking Asymmetry Percentage (%)', 'Walking Double Support Percentage (%)'],
-  ['Stair Speed: Down (ft/s)', 'Stair Speed: Up (ft/s)', 'Flights Climbed (count)']
+  ['Active Energy (kcal)', 'Resting Energy (kcal)', 'Apple Exercise Time (min)',
+   'Apple Stand Hour (count)', 'Apple Stand Time (min)', 'Step Count (count)',
+   'Walking + Running Distance (mi)', 'Physical Effort (kcal/hr·kg)', 'Flights Climbed (count)'],
+  ['Walking Speed (mi/hr)', 'Walking Step Length (in)', 'Walking Asymmetry Percentage (%)',
+   'Walking Double Support Percentage (%)', 'Walking Heart Rate Average (count/min)'],
+  ['Stair Speed: Down (ft/s)', 'Stair Speed: Up (ft/s)']
 ];
 
 function isRedundantPair(fieldA, fieldB) {
