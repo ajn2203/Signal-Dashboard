@@ -3,20 +3,22 @@ const CONFIG = {
   health: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=767932203&single=true&output=csv',
   symptoms: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=1608466763&single=true&output=csv',
   mood: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=880120131&single=true&output=csv',
-  habits: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=335739502&single=true&output=csv'
+  habits: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=335739502&single=true&output=csv',
+  screentime: 'PASTE_SCREENTIME_PUBLISHED_CSV_URL_HERE'
 };
 
 const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzg8Uri9-dsiV8HKZzW8byvPMzqicNTCVbkgfx3nlv0MFtfgCuBluoB1Fh6E8FQJoqDcw/exec';
 
 const DIET_KEYWORDS = ['diet', 'food', 'calorie', 'carb', 'protein', 'fat', 'sugar', 'fiber', 'sodium', 'water', 'meal', 'nutrition', 'vitamin', 'cholesterol'];
 
-let dataStore = { health: [], symptoms: [], mood: [], habits: [] };
+let dataStore = { health: [], symptoms: [], mood: [], habits: [], screentime: [] };
 let charts = {};
 
 // ====== INIT ======
 document.addEventListener('DOMContentLoaded', async () => {
   setupTabs();
   setupHabitForm();
+  setupScreenTimeForm();
   await loadAll();
   document.getElementById('lastUpdated').textContent =
     `Last loaded: ${new Date().toLocaleString()}`;
@@ -34,16 +36,18 @@ function setupTabs() {
 }
 
 async function loadAll() {
-  const [health, symptoms, mood, habits] = await Promise.all([
+  const [health, symptoms, mood, habits, screentime] = await Promise.all([
     fetchCsv(CONFIG.health),
     fetchCsv(CONFIG.symptoms),
     fetchCsv(CONFIG.mood),
-    fetchCsv(CONFIG.habits).catch(() => [])
+    fetchCsv(CONFIG.habits).catch(() => []),
+    fetchCsv(CONFIG.screentime).catch(() => [])
   ]);
   dataStore.health = health;
   dataStore.symptoms = symptoms;
   dataStore.mood = mood;
   dataStore.habits = habits;
+  dataStore.screentime = screentime;
 
   renderOverview();
   renderHealthTab();
@@ -51,6 +55,7 @@ async function loadAll() {
   renderSymptomsTab();
   renderMoodTab();
   renderHabitsTab();
+  renderScreenTimeTab();
   renderCorrelationsTab();
 
   document.getElementById('corrThreshold').addEventListener('change', renderCorrelationsTab);
@@ -220,7 +225,7 @@ function setupHabitForm() {
 
     const date = document.getElementById('habitDate').value;
     const checkboxes = document.querySelectorAll('#habitFieldsContainer input[type="checkbox"]');
-    const payload = { date };
+    const payload = { date, _sheet: 'Habits' };
     checkboxes.forEach(cb => { payload[cb.name] = cb.checked ? 'Yes' : 'No'; });
 
     submitBtn.disabled = true;
@@ -243,6 +248,58 @@ function setupHabitForm() {
 
 function renderHabitsTab() {
   renderTable('habitsTable', dataStore.habits.slice(0, 100));
+}
+
+// ====== SCREEN TIME TAB ======
+function setupScreenTimeForm() {
+  document.getElementById('screenTimeDate').valueAsDate = new Date();
+
+  document.getElementById('screenTimeForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const status = document.getElementById('screenTimeStatus');
+    const submitBtn = document.getElementById('screenTimeSubmitBtn');
+
+    if (WEBAPP_URL.includes('PASTE_')) {
+      status.textContent = 'Set WEBAPP_URL in dashboard.js first.';
+      return;
+    }
+
+    const date = document.getElementById('screenTimeDate').value;
+    const minutes = document.getElementById('screenTimeMinutes').value;
+    const payload = { date, _sheet: 'ScreenTime', 'Total Minutes': Number(minutes) };
+
+    submitBtn.disabled = true;
+    status.textContent = 'Saving...';
+
+    try {
+      await fetch(WEBAPP_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify(payload)
+      });
+      status.textContent = 'Saved! (may take a minute to appear below after refresh)';
+    } catch (err) {
+      status.textContent = 'Error saving — check WEBAPP_URL.';
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+}
+
+function renderScreenTimeTab() {
+  const screentime = dataStore.screentime;
+  renderTable('screenTimeTable', screentime.slice(0, 100));
+
+  if (screentime.length === 0) return;
+
+  // Sort by date ascending for the chart (sheet may not be pre-sorted like the others)
+  const sorted = [...screentime].sort((a, b) => new Date(a['Date']) - new Date(b['Date']));
+  const last30 = sorted.slice(-30);
+  const labels = last30.map(r => shortDate(r['Date']));
+
+  drawLineChart('screenTimeChart', labels, [
+    { label: 'Total Minutes', data: last30.map(r => r['Total Minutes']), color: '#fbbf24' }
+  ]);
 }
 
 // ====== CORRELATIONS TAB ======
@@ -282,6 +339,13 @@ function buildJoinedDataset() {
       if (r[k] === 'Yes') byDate[d]['Habit: ' + k] = 1;
       else if (r[k] === 'No') byDate[d]['Habit: ' + k] = 0;
     });
+  });
+
+  dataStore.screentime.forEach(r => {
+    const d = toDateKey(r['Date']);
+    if (!d || typeof r['Total Minutes'] !== 'number') return;
+    byDate[d] = byDate[d] || {};
+    byDate[d]['Screen Time (min)'] = r['Total Minutes'];
   });
 
   return Object.values(byDate);
@@ -450,7 +514,12 @@ const REDUNDANT_GROUPS = [
 ];
 
 function isRedundantPair(fieldA, fieldB) {
-  return REDUNDANT_GROUPS.some(group => group.includes(fieldA) && group.includes(fieldB));
+  const a = String(fieldA).trim();
+  const b = String(fieldB).trim();
+  return REDUNDANT_GROUPS.some(group => {
+    const normalizedGroup = group.map(g => g.trim());
+    return normalizedGroup.includes(a) && normalizedGroup.includes(b);
+  });
 }
 
 // ====== HELPERS ======
