@@ -184,8 +184,57 @@ function renderDietTab() {
 }
 
 // ====== SYMPTOMS TAB ======
+const SEVERITY_SCALE = { 'mild': 1, 'moderate': 2, 'severe': 3 };
+
 function renderSymptomsTab() {
   renderTable('symptomsTable', dataStore.symptoms.slice(0, 200));
+  renderSymptomFrequencyChart();
+  renderSymptomSeverityChart();
+}
+
+function renderSymptomFrequencyChart() {
+  const symptoms = dataStore.symptoms;
+  if (symptoms.length === 0) return;
+
+  const counts = {};
+  symptoms.forEach(r => {
+    const name = r['Symptom'];
+    if (!name) return;
+    counts[name] = (counts[name] || 0) + 1;
+  });
+
+  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+  drawBarChart('symptomFreqChart', entries.map(e => e[0]), [
+    { label: 'Occurrences', data: entries.map(e => e[1]), color: '#f87171' }
+  ]);
+}
+
+function renderSymptomSeverityChart() {
+  const symptoms = dataStore.symptoms;
+  if (symptoms.length === 0) return;
+
+  // Convert severity text to a numeric scale, group by date (average if multiple same-day entries)
+  const byDate = {};
+  symptoms.forEach(r => {
+    const d = toDateKey(r['Start']);
+    const sevRaw = String(r['Severity'] || '').trim().toLowerCase();
+    const sevNum = SEVERITY_SCALE[sevRaw];
+    if (!d || sevNum === undefined) return;
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(sevNum);
+  });
+
+  const dates = Object.keys(byDate).sort((a, b) => new Date(a) - new Date(b));
+  const last30Dates = dates.slice(-30);
+  const avgSeverity = last30Dates.map(d => {
+    const vals = byDate[d];
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  });
+
+  drawLineChart('symptomSeverityChart', last30Dates.map(d => shortDate(d)), [
+    { label: 'Avg Severity (1=Mild, 2=Moderate, 3=Severe)', data: avgSeverity, color: '#fbbf24' }
+  ]);
 }
 
 // ====== MOOD TAB ======
@@ -253,6 +302,26 @@ function setupHabitForm() {
 
 function renderHabitsTab() {
   renderTable('habitsTable', dataStore.habits.slice(0, 100));
+  renderHabitFrequencyChart();
+}
+
+function renderHabitFrequencyChart() {
+  const habits = dataStore.habits;
+  if (habits.length === 0) return;
+
+  // Collect all habit column names (everything except Date)
+  const habitNames = Object.keys(habits[0]).filter(k => k !== 'Date');
+
+  const counts = habitNames.map(name => {
+    const yesCount = habits.filter(r => String(r[name]).trim().toLowerCase() === 'yes').length;
+    return { name, yesCount };
+  });
+
+  counts.sort((a, b) => b.yesCount - a.yesCount);
+
+  drawBarChart('habitFreqChart', counts.map(c => c.name), [
+    { label: 'Days logged "Yes"', data: counts.map(c => c.yesCount), color: '#5eb1ff' }
+  ]);
 }
 
 // ====== SCREEN TIME TAB ======
@@ -575,6 +644,32 @@ function drawLineChart(canvasId, labels, series) {
       scales: {
         x: { ticks: { color: '#9a9a9a' }, grid: { color: '#2a2a2e' } },
         y: { ticks: { color: '#9a9a9a' }, grid: { color: '#2a2a2e' } }
+      }
+    }
+  });
+}
+
+function drawBarChart(canvasId, labels, series) {
+  const ctx = document.getElementById(canvasId);
+  if (charts[canvasId]) charts[canvasId].destroy();
+  charts[canvasId] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: series.map(s => ({
+        label: s.label,
+        data: s.data,
+        backgroundColor: s.color + 'aa',
+        borderColor: s.color,
+        borderWidth: 1
+      }))
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#eaeaea' } } },
+      scales: {
+        x: { ticks: { color: '#9a9a9a' }, grid: { color: '#2a2a2e' } },
+        y: { ticks: { color: '#9a9a9a' }, grid: { color: '#2a2a2e' }, beginAtZero: true }
       }
     }
   });
