@@ -190,6 +190,51 @@ function renderSymptomsTab() {
   renderTable('symptomsTable', dataStore.symptoms.slice(0, 200));
   renderSymptomFrequencyChart();
   renderSymptomSeverityChart();
+  setupSymptomSelect();
+}
+
+function setupSymptomSelect() {
+  const symptoms = dataStore.symptoms;
+  const select = document.getElementById('symptomSelect');
+  if (symptoms.length === 0) {
+    select.innerHTML = '<option>No symptoms logged yet</option>';
+    return;
+  }
+
+  const uniqueSymptoms = Array.from(new Set(symptoms.map(r => r['Symptom']).filter(Boolean))).sort();
+  select.innerHTML = uniqueSymptoms.map(s => `<option value="${s}">${s}</option>`).join('');
+  select.removeEventListener('change', onSymptomSelectChange);
+  select.addEventListener('change', onSymptomSelectChange);
+  renderSingleSymptomChart(uniqueSymptoms[0]);
+}
+
+function onSymptomSelectChange(e) {
+  renderSingleSymptomChart(e.target.value);
+}
+
+function renderSingleSymptomChart(symptomName) {
+  if (!symptomName) return;
+  const filtered = dataStore.symptoms.filter(r => r['Symptom'] === symptomName);
+
+  const byDate = {};
+  filtered.forEach(r => {
+    const d = toDateKey(r['Start']);
+    const sevRaw = String(r['Severity'] || '').trim().toLowerCase();
+    const sevNum = SEVERITY_SCALE[sevRaw];
+    if (!d || sevNum === undefined) return;
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(sevNum);
+  });
+
+  const dates = Object.keys(byDate).sort((a, b) => new Date(a) - new Date(b));
+  const avgSeverity = dates.map(d => {
+    const vals = byDate[d];
+    return vals.reduce((a, b) => a + b, 0) / vals.length;
+  });
+
+  drawLineChart('singleSymptomChart', dates.map(d => shortDate(d)), [
+    { label: `${symptomName} — Avg Severity (1=Mild, 2=Moderate, 3=Severe)`, data: avgSeverity, color: '#34d399' }
+  ]);
 }
 
 function renderSymptomFrequencyChart() {
