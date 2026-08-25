@@ -68,6 +68,14 @@
     </section>
 
     <section id="symptoms" class="tab-panel">
+      <div class="chart-card">
+        <h3>Symptom Frequency</h3>
+        <canvas id="symptomFreqChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Symptom Severity Over Time</h3>
+        <canvas id="symptomSeverityChart"></canvas>
+      </div>
       <div class="table-wrap">
         <table id="symptomsTable"></table>
       </div>
@@ -106,6 +114,10 @@
           <button type="submit" id="habitSubmitBtn">Save Entry</button>
           <span id="habitStatus" class="muted"></span>
         </form>
+      </div>
+      <div class="chart-card">
+        <h3>Habit Frequency (days logged "Yes")</h3>
+        <canvas id="habitFreqChart"></canvas>
       </div>
       <div class="table-wrap">
         <table id="habitsTable"></table>
