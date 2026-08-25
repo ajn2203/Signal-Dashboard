@@ -4,7 +4,7 @@ const CONFIG = {
   symptoms: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=1608466763&single=true&output=csv',
   mood: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=880120131&single=true&output=csv',
   habits: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=335739502&single=true&output=csv',
-  screentime: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pubhtml?gid=1962964825&single=true&output=csv'
+  screentime: 'PASTE_SCREENTIME_PUBLISHED_CSV_URL_HERE'
 };
 
 const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzg8Uri9-dsiV8HKZzW8byvPMzqicNTCVbkgfx3nlv0MFtfgCuBluoB1Fh6E8FQJoqDcw/exec';
@@ -84,6 +84,7 @@ function renderOverview() {
   const latest = health[0];
   const cards = [
     { label: 'Resting HR', value: fmt(latest['Resting Heart Rate (count/min)'], 'bpm') },
+    { label: 'HRV', value: fmt(latest['Heart Rate Variability (ms)'], 'ms') },
     { label: 'Sleep (Total)', value: fmt(latest['Sleep Analysis [Total] (hr)'], 'hr') },
     { label: 'Steps', value: fmt(latest['Step Count (count)']) },
     { label: 'Active Energy', value: fmt(latest['Active Energy (kcal)'], 'kcal') },
@@ -108,6 +109,10 @@ function renderOverview() {
 
   drawLineChart('hrChart', labels, [
     { label: 'Resting HR', data: last30.map(r => r['Resting Heart Rate (count/min)']), color: '#f87171' }
+  ]);
+
+  drawLineChart('hrvChart', labels, [
+    { label: 'HRV (ms)', data: last30.map(r => r['Heart Rate Variability (ms)']), color: '#a78bfa' }
   ]);
 }
 
@@ -290,15 +295,35 @@ function renderScreenTimeTab() {
   const screentime = dataStore.screentime;
   renderTable('screenTimeTable', screentime.slice(0, 100));
 
-  if (screentime.length === 0) return;
+  if (screentime.length === 0) {
+    console.log('Screen Time: no rows loaded from CSV. Check CONFIG.screentime URL and that the sheet has data.');
+    return;
+  }
+
+  // Be defensive about column naming - find the minutes column and date column
+  // regardless of minor case/whitespace differences, since this sheet is populated
+  // by doPost and could have slight header variance.
+  const sampleRow = screentime[0];
+  const keys = Object.keys(sampleRow);
+  const dateKey = keys.find(k => k.trim().toLowerCase() === 'date') || 'Date';
+  const minutesKey = keys.find(k => k.trim().toLowerCase() === 'total minutes') || 'Total Minutes';
+
+  console.log('Screen Time keys found:', keys, 'using dateKey:', dateKey, 'minutesKey:', minutesKey);
+
+  const validRows = screentime.filter(r => r[dateKey] && r[minutesKey] !== undefined && r[minutesKey] !== null && r[minutesKey] !== '');
+
+  if (validRows.length === 0) {
+    console.log('Screen Time: rows exist but none have both a date and a minutes value.', screentime.slice(0, 3));
+    return;
+  }
 
   // Sort by date ascending for the chart (sheet may not be pre-sorted like the others)
-  const sorted = [...screentime].sort((a, b) => new Date(a['Date']) - new Date(b['Date']));
+  const sorted = [...validRows].sort((a, b) => new Date(a[dateKey]) - new Date(b[dateKey]));
   const last30 = sorted.slice(-30);
-  const labels = last30.map(r => shortDate(r['Date']));
+  const labels = last30.map(r => shortDate(r[dateKey]));
 
   drawLineChart('screenTimeChart', labels, [
-    { label: 'Total Minutes', data: last30.map(r => r['Total Minutes']), color: '#fbbf24' }
+    { label: 'Total Minutes', data: last30.map(r => Number(r[minutesKey])), color: '#fbbf24' }
   ]);
 }
 
@@ -536,7 +561,10 @@ function drawLineChart(canvasId, labels, series) {
         borderColor: s.color,
         backgroundColor: s.color + '33',
         tension: 0.3,
-        pointRadius: 0,
+        pointRadius: 3,
+        pointBackgroundColor: s.color,
+        pointBorderColor: '#0d0d0f',
+        pointBorderWidth: 1,
         fill: false
       }))
     },
