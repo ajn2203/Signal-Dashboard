@@ -21,11 +21,16 @@
     <button class="tab-btn" data-tab="mood">Mood</button>
     <button class="tab-btn" data-tab="habits">Habits</button>
     <button class="tab-btn" data-tab="screentime">Screen Time</button>
+    <button class="tab-btn" data-tab="workouts">Workouts</button>
     <button class="tab-btn" data-tab="correlations">Correlations</button>
   </nav>
 
   <main>
     <section id="overview" class="tab-panel active">
+      <div class="chart-card">
+        <h3>Trends Worth Noticing (Last 7 Days)</h3>
+        <div id="trendAlerts" class="trend-list"></div>
+      </div>
       <div class="card-grid" id="summaryCards"></div>
       <div class="chart-card">
         <h3>Sleep (hrs) — Last 30 Days</h3>
@@ -154,8 +159,24 @@
       </div>
     </section>
 
+    <section id="workouts" class="tab-panel">
+      <p class="muted">Pulled from your Workouts sheet (band/watch exports). Set CONFIG.workouts in dashboard.js to your published CSV link.</p>
+      <div class="card-grid" id="workoutCards"></div>
+      <div class="chart-card">
+        <h3>Strain & Recovery — Last 30 Workouts</h3>
+        <canvas id="workoutStrainChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Avg HR — Last 30 Workouts</h3>
+        <canvas id="workoutHrChart"></canvas>
+      </div>
+      <div class="table-wrap">
+        <table id="workoutsTable"></table>
+      </div>
+    </section>
+
     <section id="correlations" class="tab-panel">
-      <p class="muted">Pearson correlation across all numeric fields (Health, Mood valence, Habits), joined by date. Rows are sorted by strength; a p-value under 0.05 is flagged significant.</p>
+      <p class="muted">Pearson correlation across all numeric fields (Health, Mood valence, Habits, Workouts), joined by date. Rows are sorted by strength; a p-value under 0.05 is flagged significant.</p>
       <div class="controls">
         <label>Min |r| to show:
           <select id="corrThreshold">
