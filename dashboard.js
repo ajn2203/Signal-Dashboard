@@ -4,14 +4,30 @@ const CONFIG = {
   symptoms: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=1608466763&single=true&output=csv',
   mood: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=880120131&single=true&output=csv',
   habits: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=335739502&single=true&output=csv',
-  screentime: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=1962964825&single=true&output=csv'
+  screentime: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=1962964825&single=true&output=csv',
+  // TODO: paste your published "Workouts" tab CSV link here (File > Share > Publish to web > select the Workouts sheet > CSV)
+  workouts: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pubhtml?gid=971264779&single=true&output=csv'
 };
 
 const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzg8Uri9-dsiV8HKZzW8byvPMzqicNTCVbkgfx3nlv0MFtfgCuBluoB1Fh6E8FQJoqDcw/exec';
 
 const DIET_KEYWORDS = ['diet', 'food', 'calorie', 'carb', 'protein', 'fat', 'sugar', 'fiber', 'sodium', 'water', 'meal', 'nutrition', 'vitamin', 'cholesterol'];
 
-let dataStore = { health: [], symptoms: [], mood: [], habits: [], screentime: [] };
+// Metrics the trend-detection engine watches. "goodDirection" is used only to
+// color the alert card (green = trending the healthy way, amber = worth a look);
+// it never hides or filters a trend, just labels it.
+const TREND_METRICS = [
+  { key: 'Resting Heart Rate (count/min)', label: 'Resting Heart Rate', unit: 'bpm', goodDirection: 'down' },
+  { key: 'Heart Rate Variability (ms)', label: 'HRV', unit: 'ms', goodDirection: 'up' },
+  { key: 'Sleep Analysis [Total] (hr)', label: 'Sleep (Total)', unit: 'hr', goodDirection: 'up' },
+  { key: 'Step Count (count)', label: 'Steps', unit: 'steps', goodDirection: 'up' },
+  { key: 'Active Energy (kcal)', label: 'Active Energy', unit: 'kcal', goodDirection: 'up' },
+  { key: 'Apple Exercise Time (min)', label: 'Exercise Time', unit: 'min', goodDirection: 'up' },
+  { key: 'Weight (lb)', label: 'Weight', unit: 'lb', goodDirection: null },
+  { key: 'VO2 Max (ml/(kg·min))', label: 'VO2 Max', unit: '', goodDirection: 'up' }
+];
+
+let dataStore = { health: [], symptoms: [], mood: [], habits: [], screentime: [], workouts: [] };
 let charts = {};
 
 // ====== INIT ======
@@ -36,18 +52,20 @@ function setupTabs() {
 }
 
 async function loadAll() {
-  const [health, symptoms, mood, habits, screentime] = await Promise.all([
+  const [health, symptoms, mood, habits, screentime, workouts] = await Promise.all([
     fetchCsv(CONFIG.health),
     fetchCsv(CONFIG.symptoms),
     fetchCsv(CONFIG.mood),
     fetchCsv(CONFIG.habits).catch(() => []),
-    fetchCsv(CONFIG.screentime).catch(() => [])
+    fetchCsv(CONFIG.screentime).catch(() => []),
+    fetchCsv(CONFIG.workouts).catch(() => [])
   ]);
   dataStore.health = health;
   dataStore.symptoms = symptoms;
   dataStore.mood = mood;
   dataStore.habits = habits;
   dataStore.screentime = screentime;
+  dataStore.workouts = workouts;
 
   renderOverview();
   renderHealthTab();
@@ -56,6 +74,7 @@ async function loadAll() {
   renderMoodTab();
   renderHabitsTab();
   renderScreenTimeTab();
+  renderWorkoutsTab();
   renderCorrelationsTab();
 
   document.getElementById('corrThreshold').addEventListener('change', renderCorrelationsTab);
@@ -79,6 +98,7 @@ function fetchCsv(url) {
 // ====== OVERVIEW ======
 function renderOverview() {
   const health = dataStore.health;
+  renderTrendAlerts();
   if (health.length === 0) return;
 
   const latest = health[0];
@@ -114,6 +134,96 @@ function renderOverview() {
   drawLineChart('hrvChart', labels, [
     { label: 'HRV (ms)', data: last30.map(r => r['Heart Rate Variability (ms)']), color: '#a78bfa' }
   ]);
+}
+
+// ====== TREND DETECTION ======
+// Compares a "recent" window (last `recentDays`) against a "baseline" window
+// (the `baselineDays` before that) for one metric and flags it if the shift
+// is large relative to that metric's own recent variability (z-score), not
+// just an arbitrary percentage. This avoids flagging noisy low-signal metrics
+// while still catching real shifts in things that don't normally move much.
+function daysAgo(dateStr) {
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+  return (Date.now() - d.getTime()) / 86400000;
+}
+
+function detectTrend(rows, dateField, metricField, recentDays = 7, baselineDays = 21) {
+  const recentVals = [];
+  const baselineVals = [];
+  rows.forEach(r => {
+    const val = r[metricField];
+    if (typeof val !== 'number') return;
+    const age = daysAgo(r[dateField]);
+    if (age === null || age < 0) return;
+    if (age <= recentDays) recentVals.push(val);
+    else if (age <= recentDays + baselineDays) baselineVals.push(val);
+  });
+
+  // Require a minimum sample in each window so a single data point can't
+  // register as a "trend."
+  if (recentVals.length < 3 || baselineVals.length < 5) return null;
+
+  const mean = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+  const std = arr => {
+    const m = mean(arr);
+    return Math.sqrt(arr.reduce((a, b) => a + (b - m) ** 2, 0) / arr.length);
+  };
+
+  const baseMean = mean(baselineVals);
+  const baseStd = std(baselineVals) || Math.abs(baseMean) * 0.05 || 1;
+  const recentMean = mean(recentVals);
+  const zScore = (recentMean - baseMean) / baseStd;
+  const pctChange = baseMean !== 0 ? ((recentMean - baseMean) / Math.abs(baseMean)) * 100 : 0;
+
+  return {
+    recentMean, baseMean, zScore, pctChange,
+    direction: recentMean > baseMean ? 'up' : 'down',
+    n: recentVals.length
+  };
+}
+
+function renderTrendAlerts() {
+  const container = document.getElementById('trendAlerts');
+  if (!container) return;
+  const health = dataStore.health;
+
+  if (health.length === 0) {
+    container.innerHTML = '<p class="muted">Not enough data yet to detect trends.</p>';
+    return;
+  }
+
+  const results = [];
+  TREND_METRICS.forEach(m => {
+    const trend = detectTrend(health, 'Date/Time', m.key);
+    if (!trend) return;
+    if (Math.abs(trend.zScore) < 1) return; // only surface meaningful shifts
+    results.push({ ...trend, ...m });
+  });
+
+  results.sort((a, b) => Math.abs(b.zScore) - Math.abs(a.zScore));
+  const top = results.slice(0, 5);
+
+  if (top.length === 0) {
+    container.innerHTML = '<p class="muted">No notable trends this week — everything\'s tracking close to your recent baseline.</p>';
+    return;
+  }
+
+  container.innerHTML = top.map(t => {
+    const arrow = t.direction === 'up' ? '▲' : '▼';
+    const cls = t.goodDirection ? (t.direction === t.goodDirection ? 'trend-good' : 'trend-watch') : 'trend-neutral';
+    const pct = Math.abs(t.pctChange).toFixed(0);
+    const unit = t.unit ? ` ${t.unit}` : '';
+    return `
+      <div class="trend-card ${cls}">
+        <div class="trend-arrow">${arrow}</div>
+        <div class="trend-body">
+          <div class="trend-label">${t.label}</div>
+          <div class="trend-detail">${t.direction === 'up' ? 'Up' : 'Down'} ${pct}% vs. your last 3 weeks — averaging ${fmt(t.recentMean)}${unit} this week</div>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 // ====== HEALTH TAB ======
@@ -259,7 +369,6 @@ function renderSymptomSeverityChart() {
   const symptoms = dataStore.symptoms;
   if (symptoms.length === 0) return;
 
-  // Convert severity text to a numeric scale, group by date (average if multiple same-day entries)
   const byDate = {};
   symptoms.forEach(r => {
     const d = toDateKey(r['Start']);
@@ -354,7 +463,6 @@ function renderHabitFrequencyChart() {
   const habits = dataStore.habits;
   if (habits.length === 0) return;
 
-  // Collect all habit column names (everything except Date)
   const habitNames = Object.keys(habits[0]).filter(k => k !== 'Date');
 
   const counts = habitNames.map(name => {
@@ -414,9 +522,6 @@ function renderScreenTimeTab() {
     return;
   }
 
-  // Be defensive about column naming - find the minutes column and date column
-  // regardless of minor case/whitespace differences, since this sheet is populated
-  // by doPost and could have slight header variance.
   const sampleRow = screentime[0];
   const keys = Object.keys(sampleRow);
   const dateKey = keys.find(k => k.trim().toLowerCase() === 'date') || 'Date';
@@ -431,7 +536,6 @@ function renderScreenTimeTab() {
     return;
   }
 
-  // Sort by date ascending for the chart (sheet may not be pre-sorted like the others)
   const sorted = [...validRows].sort((a, b) => new Date(a[dateKey]) - new Date(b[dateKey]));
   const last30 = sorted.slice(-30);
   const labels = last30.map(r => shortDate(r[dateKey]));
@@ -441,9 +545,71 @@ function renderScreenTimeTab() {
   ]);
 }
 
+// ====== WORKOUTS TAB ======
+function renderWorkoutsTab() {
+  const workouts = dataStore.workouts;
+  const cardsEl = document.getElementById('workoutCards');
+  const table = document.getElementById('workoutsTable');
+
+  if (workouts.length === 0) {
+    cardsEl.innerHTML = '<p class="muted">No workouts logged yet. Add rows to your Workouts sheet and set CONFIG.workouts in dashboard.js.</p>';
+    table.innerHTML = '<tr><td>No data</td></tr>';
+    return;
+  }
+
+  // Defensive key lookup, same pattern as Screen Time, since this sheet may
+  // be populated by hand and headers can drift slightly.
+  const keys = Object.keys(workouts[0]);
+  const dateKey = keys.find(k => k.trim().toLowerCase() === 'date') || 'Date';
+  const strainKey = keys.find(k => k.trim().toLowerCase() === 'strain') || 'Strain';
+  const recoveryKey = keys.find(k => k.trim().toLowerCase().includes('recovery')) || 'Recovery Score';
+  const caloriesKey = keys.find(k => k.trim().toLowerCase().includes('calor')) || 'Calories (kcal)';
+  const avgHrKey = keys.find(k => k.trim().toLowerCase().includes('avg hr')) || 'Avg HR';
+
+  const validRows = workouts.filter(r => r[dateKey]);
+  const sortedAsc = [...validRows].sort((a, b) => new Date(a[dateKey]) - new Date(b[dateKey]));
+  const sortedDesc = [...sortedAsc].reverse();
+
+  const last30 = sortedAsc.slice(-30);
+  const avgStrain = average(last30.map(r => r[strainKey]).filter(isNum));
+  const avgRecovery = average(last30.map(r => r[recoveryKey]).filter(isNum));
+  const totalCalories = last30.reduce((sum, r) => sum + (isNum(r[caloriesKey]) ? r[caloriesKey] : 0), 0);
+
+  cardsEl.innerHTML = [
+    { label: 'Workouts (30d)', value: last30.length },
+    { label: 'Avg Strain (30d)', value: fmt(avgStrain) },
+    { label: 'Avg Recovery (30d)', value: fmt(avgRecovery) },
+    { label: 'Total Calories (30d)', value: fmt(totalCalories, 'kcal') }
+  ].map(c => `
+    <div class="card">
+      <div class="label">${c.label}</div>
+      <div class="value">${c.value}</div>
+    </div>
+  `).join('');
+
+  const chartRows = sortedAsc.slice(-30);
+  const labels = chartRows.map(r => shortDate(r[dateKey]));
+
+  drawLineChart('workoutStrainChart', labels, [
+    { label: 'Strain', data: chartRows.map(r => r[strainKey]), color: '#f87171' },
+    { label: 'Recovery', data: chartRows.map(r => r[recoveryKey]), color: '#34d399' }
+  ]);
+
+  drawLineChart('workoutHrChart', labels, [
+    { label: 'Avg HR', data: chartRows.map(r => r[avgHrKey]), color: '#5eb1ff' }
+  ]);
+
+  renderTable('workoutsTable', sortedDesc.slice(0, 100));
+}
+
+function average(arr) {
+  if (arr.length === 0) return null;
+  return arr.reduce((a, b) => a + b, 0) / arr.length;
+}
+function isNum(v) { return typeof v === 'number' && !isNaN(v); }
+
 // ====== CORRELATIONS TAB ======
 function buildJoinedDataset() {
-  // Join Health (by date), Mood (avg valence per date), Habits (by date) into one row-per-day dataset.
   const byDate = {};
 
   dataStore.health.forEach(r => {
@@ -474,7 +640,6 @@ function buildJoinedDataset() {
     byDate[d] = byDate[d] || {};
     Object.keys(r).forEach(k => {
       if (k === 'Date') return;
-      // Convert Yes/No to 1/0 for correlation purposes
       if (r[k] === 'Yes') byDate[d]['Habit: ' + k] = 1;
       else if (r[k] === 'No') byDate[d]['Habit: ' + k] = 0;
     });
@@ -486,6 +651,21 @@ function buildJoinedDataset() {
     byDate[d] = byDate[d] || {};
     byDate[d]['Screen Time (min)'] = r['Total Minutes'];
   });
+
+  if (dataStore.workouts.length > 0) {
+    const keys = Object.keys(dataStore.workouts[0]);
+    const dateKey = keys.find(k => k.trim().toLowerCase() === 'date') || 'Date';
+    const strainKey = keys.find(k => k.trim().toLowerCase() === 'strain') || 'Strain';
+    const recoveryKey = keys.find(k => k.trim().toLowerCase().includes('recovery')) || 'Recovery Score';
+
+    dataStore.workouts.forEach(r => {
+      const d = toDateKey(r[dateKey]);
+      if (!d) return;
+      byDate[d] = byDate[d] || {};
+      if (typeof r[strainKey] === 'number') byDate[d]['Workout Strain'] = r[strainKey];
+      if (typeof r[recoveryKey] === 'number') byDate[d]['Workout Recovery'] = r[recoveryKey];
+    });
+  }
 
   return Object.values(byDate);
 }
@@ -513,14 +693,12 @@ function pearsonCorrelation(x, y) {
 }
 
 function pValueFromR(r, n) {
-  // t-statistic for Pearson r, then approximate two-tailed p-value via t-distribution
   if (n < 3 || Math.abs(r) >= 1) return r === 0 ? 1 : 0;
   const t = r * Math.sqrt((n - 2) / (1 - r * r));
   const df = n - 2;
   return tDistTwoTailedP(Math.abs(t), df);
 }
 
-// Approximation of the two-tailed p-value for a t-distribution (Abramowitz & Stegun style approx via incomplete beta)
 function tDistTwoTailedP(t, df) {
   const x = df / (df + t * t);
   const p = incompleteBeta(x, df / 2, 0.5);
@@ -583,7 +761,6 @@ function renderCorrelationsTab() {
     return;
   }
 
-  // Collect all numeric field names present across the joined dataset
   const allFields = new Set();
   joined.forEach(row => Object.keys(row).forEach(k => allFields.add(k)));
   const fields = Array.from(allFields);
@@ -601,7 +778,6 @@ function renderCorrelationsTab() {
 
       const x = pairs.map(p => p[0]);
       const y = pairs.map(p => p[1]);
-      // Skip constant columns (zero variance breaks correlation math)
       if (new Set(x).size === 1 || new Set(y).size === 1) continue;
 
       const r = pearsonCorrelation(x, y);
@@ -634,10 +810,6 @@ function renderCorrelationsTab() {
   table.innerHTML = thead + tbody;
 }
 
-// Groups of fields that are trivially related by definition (sub-components of
-// the same measurement, or min/max/avg of the same underlying metric). Any pair
-// where both fields fall in the same group is skipped, since a high correlation
-// there reflects arithmetic, not behavior.
 const REDUNDANT_GROUPS = [
   ['Sleep Analysis [Total] (hr)', 'Sleep Analysis [Asleep] (hr)', 'Sleep Analysis [In Bed] (hr)',
    'Sleep Analysis [Core] (hr)', 'Sleep Analysis [Deep] (hr)', 'Sleep Analysis [REM] (hr)',
