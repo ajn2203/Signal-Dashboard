@@ -18,7 +18,6 @@ header {
 }
 h1 { margin: 0; font-size: 1.6rem; }
 .muted { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
-
 .tabs {
   display: flex;
   gap: 8px;
@@ -39,11 +38,9 @@ h1 { margin: 0; font-size: 1.6rem; }
   color: var(--text);
   border-bottom: 2px solid var(--accent);
 }
-
 main { padding: 24px 32px 60px; }
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
-
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -58,7 +55,6 @@ main { padding: 24px 32px 60px; }
 }
 .card .label { color: var(--muted); font-size: 0.8rem; }
 .card .value { font-size: 1.5rem; font-weight: 600; margin-top: 4px; }
-
 .chart-card {
   background: var(--card);
   border: 1px solid var(--border);
@@ -68,7 +64,6 @@ main { padding: 24px 32px 60px; }
 }
 .chart-card h3 { margin: 0 0 12px; font-size: 1rem; color: var(--muted); }
 canvas { max-height: 320px; }
-
 .controls { margin-bottom: 16px; }
 .controls select {
   background: var(--card);
@@ -77,7 +72,6 @@ canvas { max-height: 320px; }
   border-radius: 6px;
   padding: 8px 12px;
 }
-
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 th, td {
@@ -88,7 +82,6 @@ th, td {
 }
 th { color: var(--muted); position: sticky; top: 0; background: var(--card); }
 tr:hover td { background: rgba(255,255,255,0.03); }
-
 /* ===== v2 additions ===== */
 .form-row {
   margin-bottom: 14px;
@@ -122,7 +115,6 @@ tr:hover td { background: rgba(255,255,255,0.03); }
   font-size: 0.9rem;
 }
 .habit-toggle input { width: 16px; height: 16px; }
-
 button {
   background: var(--accent);
   color: #08131f;
@@ -138,6 +130,33 @@ button#addHabitBtn {
   border: 1px solid var(--border);
   padding: 8px 14px;
 }
-
 .sig-yes { color: #34d399; font-weight: 600; }
 .sig-no { color: var(--muted); }
+
+/* ===== v3 additions: trend alerts + workouts tab ===== */
+.trend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.trend-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+.trend-arrow {
+  font-size: 1.3rem;
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.trend-body { flex: 1; }
+.trend-label { font-weight: 600; font-size: 0.95rem; }
+.trend-detail { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+.trend-good .trend-arrow { color: #34d399; }
+.trend-watch .trend-arrow { color: #fbbf24; }
+.trend-neutral .trend-arrow { color: var(--accent); }
