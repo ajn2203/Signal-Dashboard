@@ -526,6 +526,36 @@ function renderMoodTab() {
   ]);
 
   renderTable('moodTable', mood.slice(0, 200));
+  renderMoodStressChart(); // add this
+}
+
+function renderMoodStressChart() {
+  const health = dataStore.health;
+  const card = document.getElementById('moodStressCard');
+  if (health.length === 0) {
+    if (card) card.style.display = 'none';
+    return;
+  }
+
+  const keys = Object.keys(health[0]);
+  const stressKey = keys.find(k => k.trim().toLowerCase() === 'stress');
+  const maxStressKey = keys.find(k => k.trim().toLowerCase() === 'max stress');
+
+  if (!stressKey) {
+    if (card) card.style.display = 'none';
+    return;
+  }
+  if (card) card.style.display = '';
+
+  const last30 = health.slice(0, 30).reverse();
+  const labels = last30.map(r => shortDate(r['Date/Time']));
+  const series = [{ label: 'Avg Stress', data: last30.map(r => r[stressKey]), color: '#fbbf24' }];
+  if (maxStressKey) {
+    series.push({ label: 'Max Stress', data: last30.map(r => r[maxStressKey]), color: '#f87171' });
+  }
+  drawLineChart('moodStressChart', labels, series);
+}
+  renderTable('moodTable', mood.slice(0, 200));
 }
 
 // ====== HABITS TAB ======
