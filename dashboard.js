@@ -909,11 +909,11 @@ function renderCorrelationsTab() {
     }
   }
 
-  let filtered = results.filter(res => Math.abs(res.r) >= threshold);
-  if (sigOnly) filtered = filtered.filter(res => res.p < 0.05);
-  const minN = parseInt(document.getElementById('minNThreshold').value, 10);
-  filtered = filtered.filter(res => res.n >= minN); 
-  filtered.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
+let filtered = results.filter(res => Math.abs(res.r) >= threshold);
+if (sigOnly) filtered = filtered.filter(res => res.p < 0.05);
+const minN = parseInt(document.getElementById('minNThreshold').value, 10);  // <-- add this back
+filtered = filtered.filter(res => res.n >= minN);
+filtered.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
   
 
   const table = document.getElementById('correlationTable');
