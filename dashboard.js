@@ -555,8 +555,6 @@ function renderMoodStressChart() {
   }
   drawLineChart('moodStressChart', labels, series);
 }
-  renderTable('moodTable', mood.slice(0, 200));
-}
 
 // ====== HABITS TAB ======
 function setupHabitForm() {
