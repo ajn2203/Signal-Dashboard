@@ -177,7 +177,6 @@
         <table id="workoutsTable"></table>
       </div>
     </section>
-
     <section id="correlations" class="tab-panel">
       <p class="muted">Pearson correlation across all numeric fields (Health, Mood valence, Habits, Workouts), joined by date. Rows are sorted by strength; a p-value under 0.05 is flagged significant.</p>
       <div class="controls">
@@ -191,6 +190,15 @@
         </label>
         <label style="margin-left: 16px;">
           <input type="checkbox" id="sigOnly"> Significant only (p &lt; 0.05)
+        </label>
+        <label style="margin-left: 16px;">Min n:
+          <select id="minNThreshold">
+            <option value="0" selected>Any</option>
+            <option value="5">5+</option>
+            <option value="10">10+</option>
+            <option value="30">30+</option>
+            <option value="100">100+</option>
+          </select>
         </label>
       </div>
       <div class="table-wrap">
