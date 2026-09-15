@@ -99,6 +99,7 @@ function fetchCsv(url) {
 function renderOverview() {
   const health = dataStore.health;
   renderTrendAlerts();
+  renderBlipAlerts();
   if (health.length === 0) return;
 
   const latest = health[0];
@@ -134,6 +135,98 @@ function renderOverview() {
   drawLineChart('hrvChart', labels, [
     { label: 'HRV (ms)', data: last30.map(r => r['Heart Rate Variability (ms)']), color: '#a78bfa' }
   ]);
+}
+// ====== SHORT-TERM BLIP DETECTION ======
+// Looks at the most recent `streakDays` calendar days individually (not
+// averaged) and flags a metric only if EVERY one of those days deviates from
+// baseline in the same direction by at least `threshold` standard deviations.
+// This catches short dips/spikes the weekly trend card would smooth over.
+function detectBlip(rows, dateField, metricField, streakDays = 3, baselineDays = 21) {
+  const dated = rows
+    .filter(r => typeof r[metricField] === 'number')
+    .map(r => ({ age: daysAgo(r[dateField]), value: r[metricField] }))
+    .filter(r => r.age !== null && r.age >= 0)
+    .sort((a, b) => a.age - b.age);
+
+  const recent = dated.filter(r => r.age < streakDays);
+  const baseline = dated
+    .filter(r => r.age >= streakDays && r.age < streakDays + baselineDays)
+    .map(r => r.value);
+
+  if (recent.length < streakDays || baseline.length < 5) return null;
+
+  const mean = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+  const std = arr => {
+    const m = mean(arr);
+    return Math.sqrt(arr.reduce((a, b) => a + (b - m) ** 2, 0) / arr.length);
+  };
+
+  const baseMean = mean(baseline);
+  const baseStd = std(baseline) || Math.abs(baseMean) * 0.05 || 1;
+  const recentValues = recent.map(r => r.value);
+  const recentMean = mean(recentValues);
+
+  return { recentValues, recentMean, baseMean, baseStd, n: recentValues.length };
+}
+
+function renderBlipAlerts() {
+  const container = document.getElementById('blipAlerts');
+  if (!container) return;
+  const health = dataStore.health;
+
+  if (health.length === 0) {
+    container.innerHTML = '<p class="muted">Not enough data yet.</p>';
+    return;
+  }
+
+  const STREAK_DAYS = 3;      // how many recent days to check
+  const Z_THRESHOLD = 0.5;    // how far from baseline (in std devs) each day must be
+
+  const results = [];
+  TREND_METRICS.forEach(m => {
+    const blip = detectBlip(health, 'Date/Time', m.key, STREAK_DAYS);
+    if (!blip) return;
+
+    // Every one of the recent days must deviate the same direction by at
+    // least Z_THRESHOLD — a single normal day in the streak clears the flag.
+    let direction = null;
+    let consistent = true;
+    blip.recentValues.forEach(v => {
+      const z = (v - blip.baseMean) / blip.baseStd;
+      const dir = z >= 0 ? 'up' : 'down';
+      if (Math.abs(z) < Z_THRESHOLD) { consistent = false; return; }
+      if (direction === null) direction = dir;
+      else if (dir !== direction) consistent = false;
+    });
+    if (!consistent || !direction) return;
+
+    const pctChange = blip.baseMean !== 0
+      ? ((blip.recentMean - blip.baseMean) / Math.abs(blip.baseMean)) * 100
+      : 0;
+
+    results.push({ ...m, direction, pctChange, recentMean: blip.recentMean, n: blip.n });
+  });
+
+  if (results.length === 0) {
+    container.innerHTML = `<p class="muted">No ${STREAK_DAYS}-day streaks right now.</p>`;
+    return;
+  }
+
+  container.innerHTML = results.map(r => {
+    const arrow = r.direction === 'up' ? '▲' : '▼';
+    const cls = r.goodDirection ? (r.direction === r.goodDirection ? 'trend-good' : 'trend-watch') : 'trend-neutral';
+    const pct = Math.abs(r.pctChange).toFixed(0);
+    const unit = r.unit ? ` ${r.unit}` : '';
+    return `
+      <div class="trend-card ${cls}">
+        <div class="trend-arrow">${arrow}</div>
+        <div class="trend-body">
+          <div class="trend-label">${r.label}</div>
+          <div class="trend-detail">${r.direction === 'up' ? 'Up' : 'Down'} ${pct}% for the last ${r.n} days — averaging ${fmt(r.recentMean)}${unit}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 // ====== TREND DETECTION ======
