@@ -79,6 +79,7 @@ async function loadAll() {
 
   document.getElementById('corrThreshold').addEventListener('change', renderCorrelationsTab);
   document.getElementById('sigOnly').addEventListener('change', renderCorrelationsTab);
+  document.getElementById('minNThreshold').addEventListener('change', renderCorrelationsTab);
 }
 
 function fetchCsv(url) {
@@ -377,6 +378,7 @@ function renderDietTab() {
     color: palette[i % palette.length]
   }));
   drawLineChart('dietChart', labels, series);
+  renderDietCalorieChart(); 
 
   const dietRows = health.slice(0, 100).map(r => {
     const filtered = { 'Date/Time': r['Date/Time'] };
@@ -483,7 +485,33 @@ function renderSymptomSeverityChart() {
     { label: 'Avg Severity (1=Mild, 2=Moderate, 3=Severe)', data: avgSeverity, color: '#fbbf24' }
   ]);
 }
+function findDietCalorieColumn() {
+  const health = dataStore.health;
+  if (health.length === 0) return null;
+  const keys = Object.keys(health[0]);
+  // Looks for a dietary calorie column (e.g. "Dietary Energy (kcal)"),
+  // distinct from Active/Resting Energy which are activity-based.
+  return keys.find(k => {
+    const lower = k.toLowerCase();
+    return lower.includes('calorie') || lower.includes('dietary energy');
+  }) || null;
+}
 
+function renderDietCalorieChart() {
+  const health = dataStore.health;
+  const calKey = findDietCalorieColumn();
+  const card = document.getElementById('dietCalorieCard');
+  if (!calKey || health.length === 0) {
+    if (card) card.style.display = 'none';
+    return;
+  }
+  if (card) card.style.display = '';
+  const last30 = health.slice(0, 30).reverse();
+  const labels = last30.map(r => shortDate(r['Date/Time']));
+  drawLineChart('dietCalorieChart', labels, [
+    { label: calKey, data: last30.map(r => r[calKey]), color: '#fbbf24' }
+  ]);
+}
 // ====== MOOD TAB ======
 function renderMoodTab() {
   const mood = dataStore.mood;
@@ -881,7 +909,9 @@ function renderCorrelationsTab() {
 
   let filtered = results.filter(res => Math.abs(res.r) >= threshold);
   if (sigOnly) filtered = filtered.filter(res => res.p < 0.05);
+  filtered = filtered.filter(res => res.n >= minN); 
   filtered.sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
+  
 
   const table = document.getElementById('correlationTable');
   if (filtered.length === 0) {
