@@ -11,7 +11,7 @@ const CONFIG = {
 
 const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzg8Uri9-dsiV8HKZzW8byvPMzqicNTCVbkgfx3nlv0MFtfgCuBluoB1Fh6E8FQJoqDcw/exec';
 
-const DIET_KEYWORDS = ['diet', 'food', 'calorie', 'carb', 'protein', 'fat', 'sugar', 'fiber', 'sodium', 'water', 'meal', 'nutrition', 'vitamin', 'cholesterol'];
+const DIET_KEYWORDS = ['diet', 'food', 'calorie', 'carb', 'protein', 'fat', 'sugar', 'fiber', 'sodium', 'water', 'meal', 'nutrition', 'vitamin', 'cholesterol''sugar', 'sodium', 'water', 'Iron (mg)', 'Fiber (g)','Potassium (mg)','Saturated Fat (g)', 'Sugar (g)','Vitamin C (mg)'];
 
 // Metrics the trend-detection engine watches. "goodDirection" is used only to
 // color the alert card (green = trending the healthy way, amber = worth a look);
@@ -314,9 +314,6 @@ function renderTrendAlerts() {
     `;
   }).join('');
 }
-
-// ====== DIET CONSTANTS ======
-const DIET_KEYWORDS = ['calorie', 'protein', 'carb', 'fat', 'fiber', 'sugar', 'sodium', 'water', 'Iron (mg)', 'Fiber (g)','Potassium (mg)','Saturated Fat (g)', 'Sugar (g)','Vitamin C (mg)'];
 
 // ====== HEALTH TAB ======
 function renderHealthTab() {
