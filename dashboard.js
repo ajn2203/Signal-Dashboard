@@ -824,6 +824,20 @@ function buildJoinedDataset() {
       if (typeof r[strainKey] === 'number') byDate[d]['Workout Strain'] = r[strainKey];
       if (typeof r[recoveryKey] === 'number') byDate[d]['Workout Recovery'] = r[recoveryKey];
     });
+    const cycleDayMap = buildCycleDayMap();
+Object.keys(cycleDayMap).forEach(d => {
+  byDate[d] = byDate[d] || {};
+  byDate[d]['Cycle Day'] = cycleDayMap[d];
+});
+
+dataStore.cycle.forEach(r => {
+  const d = toDateKey(r['Start']);
+  if (!d || r['Data'] !== 'Menstrual Flow') return;
+  byDate[d] = byDate[d] || {};
+  const FLOW_SCALE = { 'spotting': 0.5, 'light': 1, 'medium': 2, 'heavy': 3 };
+  const val = FLOW_SCALE[String(r['Value']).trim().toLowerCase()];
+  if (val !== undefined) byDate[d]['Menstrual Flow'] = val;
+});
   }
 
   return Object.values(byDate);
