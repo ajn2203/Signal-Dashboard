@@ -316,7 +316,7 @@ function renderTrendAlerts() {
 }
 
 // ====== DIET CONSTANTS ======
-const DIET_KEYWORDS = ['calorie', 'protein', 'carb', 'fat', 'fiber', 'sugar', 'sodium', 'water'];
+const DIET_KEYWORDS = ['calorie', 'protein', 'carb', 'fat', 'fiber', 'sugar', 'sodium', 'water', 'Iron (mg)', 'Fiber (g)','Potassium (mg)','Saturated Fat (g)', 'Sugar (g)','Vitamin C (mg)'];
 
 // ====== HEALTH TAB ======
 function renderHealthTab() {
