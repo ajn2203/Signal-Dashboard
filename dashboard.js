@@ -285,7 +285,7 @@ function detectTrend(rows, dateField, metricField, recentDays = 7, baselineDays 
   };
 }
 
-function renderTrendAlerts() {
+function renderTrendAlerts() 
   const container = document.getElementById('trendAlerts');
   if (!container) return;
   const health = dataStore.health;
