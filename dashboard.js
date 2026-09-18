@@ -285,11 +285,11 @@ function detectTrend(rows, dateField, metricField, recentDays = 7, baselineDays 
   };
 }
 
-function renderTrendAlerts() 
+function renderTrendAlerts() {
   const container = document.getElementById('trendAlerts');
   if (!container) return;
   const health = dataStore.health;
-
+}
   if (health.length === 0) {
     container.innerHTML = '<p class="muted">Not enough data yet to detect trends.</p>';
     return;
