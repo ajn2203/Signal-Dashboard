@@ -146,10 +146,6 @@ const cards = [
 ]);
 }
 // ====== SHORT-TERM BLIP DETECTION ======
-// Looks at the most recent `streakDays` calendar days individually (not
-// averaged) and flags a metric only if EVERY one of those days deviates from
-// baseline in the same direction by at least `threshold` standard deviations.
-// This catches short dips/spikes the weekly trend card would smooth over.
 function detectBlip(rows, dateField, metricField, streakDays = 3, baselineDays = 21) {
   const dated = rows
     .filter(r => typeof r[metricField] === 'number')
@@ -188,16 +184,14 @@ function renderBlipAlerts() {
     return;
   }
 
-  const STREAK_DAYS = 3;      // how many recent days to check
-  const Z_THRESHOLD = 0.5;    // how far from baseline (in std devs) each day must be
+  const STREAK_DAYS = 3;
+  const Z_THRESHOLD = 0.5;
 
   const results = [];
   TREND_METRICS.forEach(m => {
     const blip = detectBlip(health, 'Date/Time', m.key, STREAK_DAYS);
     if (!blip) return;
 
-    // Every one of the recent days must deviate the same direction by at
-    // least Z_THRESHOLD — a single normal day in the streak clears the flag.
     let direction = null;
     let consistent = true;
     blip.recentValues.forEach(v => {
@@ -232,6 +226,89 @@ function renderBlipAlerts() {
         <div class="trend-body">
           <div class="trend-label">${r.label}</div>
           <div class="trend-detail">${r.direction === 'up' ? 'Up' : 'Down'} ${pct}% for the last ${r.n} days — averaging ${fmt(r.recentMean)}${unit}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ====== TREND DETECTION ======
+function daysAgo(dateStr) {
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+  return (Date.now() - d.getTime()) / 86400000;
+}
+
+function detectTrend(rows, dateField, metricField, recentDays = 7, baselineDays = 21) {
+  const recentVals = [];
+  const baselineVals = [];
+  rows.forEach(r => {
+    const val = r[metricField];
+    if (typeof val !== 'number') return;
+    const age = daysAgo(r[dateField]);
+    if (age === null || age < 0) return;
+    if (age <= recentDays) recentVals.push(val);
+    else if (age <= recentDays + baselineDays) baselineVals.push(val);
+  });
+
+  if (recentVals.length < 3 || baselineVals.length < 5) return null;
+
+  const mean = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+  const std = arr => {
+    const m = mean(arr);
+    return Math.sqrt(arr.reduce((a, b) => a + (b - m) ** 2, 0) / arr.length);
+  };
+
+  const baseMean = mean(baselineVals);
+  const baseStd = std(baselineVals) || Math.abs(baseMean) * 0.05 || 1;
+  const recentMean = mean(recentVals);
+  const zScore = (recentMean - baseMean) / baseStd;
+  const pctChange = baseMean !== 0 ? ((recentMean - baseMean) / Math.abs(baseMean)) * 100 : 0;
+
+  return {
+    recentMean, baseMean, zScore, pctChange,
+    direction: recentMean > baseMean ? 'up' : 'down',
+    n: recentVals.length
+  };
+}
+
+function renderTrendAlerts() {
+  const container = document.getElementById('trendAlerts');
+  if (!container) return;
+  const health = dataStore.health;
+
+  if (health.length === 0) {
+    container.innerHTML = '<p class="muted">Not enough data yet to detect trends.</p>';
+    return;
+  }
+
+  const results = [];
+  TREND_METRICS.forEach(m => {
+    const trend = detectTrend(health, 'Date/Time', m.key);
+    if (!trend) return;
+    if (Math.abs(trend.zScore) < 1) return;
+    results.push({ ...trend, ...m });
+  });
+
+  results.sort((a, b) => Math.abs(b.zScore) - Math.abs(a.zScore));
+  const top = results.slice(0, 5);
+
+  if (top.length === 0) {
+    container.innerHTML = '<p class="muted">No notable trends this week — everything\'s tracking close to your recent baseline.</p>';
+    return;
+  }
+
+  container.innerHTML = top.map(t => {
+    const arrow = t.direction === 'up' ? '▲' : '▼';
+    const cls = t.goodDirection ? (t.direction === t.goodDirection ? 'trend-good' : 'trend-watch') : 'trend-neutral';
+    const pct = Math.abs(t.pctChange).toFixed(0);
+    const unit = t.unit ? ` ${t.unit}` : '';
+    return `
+      <div class="trend-card ${cls}">
+        <div class="trend-arrow">${arrow}</div>
+        <div class="trend-body">
+          <div class="trend-label">${t.label}</div>
+          <div class="trend-detail">${t.direction === 'up' ? 'Up' : 'Down'} ${pct}% vs. your last 3 weeks — averaging ${fmt(t.recentMean)}${unit} this week</div>
         </div>
       </div>
     `;
