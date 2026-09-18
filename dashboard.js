@@ -368,10 +368,14 @@ function renderDietCalorieChart() {
 
 function getDietColumns() {
   const health = dataStore.health;
-  if (health.length === 0) return [];
+  if (!health || health.length === 0) return [];
+  
   return Object.keys(health[0]).filter(col => {
     const lower = col.toLowerCase();
-    return DIET_KEYWORDS.some(kw => lower.includes(kw)) && col !== 'Water (fl_oz_us)' || col === 'Water (fl_oz_us)';
+    const isDietKeyword = DIET_KEYWORDS.some(kw => lower.includes(kw));
+    const isWater = col === 'Water (fl_oz_us)';
+    
+    return (isDietKeyword && col !== 'Water (fl_oz_us)') || isWater;
   });
 }
 
