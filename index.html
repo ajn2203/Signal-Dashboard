@@ -23,6 +23,7 @@
     <button class="tab-btn" data-tab="screentime">Screen Time</button>
     <button class="tab-btn" data-tab="workouts">Workouts</button>
     <button class="tab-btn" data-tab="correlations">Correlations</button>
+    <button class="tab-btn" data-tab="cycle">Cycle</button>
   </nav>
 
   <main>
@@ -66,7 +67,15 @@
         <table id="healthTable"></table>
       </div>
     </section>
-
+<section id="cycle" class="tab-panel">
+  <div class="chart-card" id="cycleCard">
+    <h3>Flow Intensity Over Time</h3>
+    <canvas id="cycleFlowChart"></canvas>
+  </div>
+  <div class="table-wrap">
+    <table id="cycleTable"></table>
+  </div>
+</section>
     <section id="diet" class="tab-panel">
       <p class="muted">Auto-detected diet-related columns from your Health sheet. If Health Auto Export hasn't added diet columns yet, this will be empty.</p>
       <div class="card-grid" id="dietCards"></div>
