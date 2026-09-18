@@ -5,8 +5,8 @@ const CONFIG = {
   mood: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=880120131&single=true&output=csv',
   habits: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=335739502&single=true&output=csv',
   screentime: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=1962964825&single=true&output=csv',
-  // TODO: paste your published "Workouts" tab CSV link here (File > Share > Publish to web > select the Workouts sheet > CSV)
- workouts: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=971264779&single=true&output=csv'
+  cycle: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=735598101&single=true&output=csv',
+  workouts: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR8hdGPZnbCBnqfHPno1DDZ4QqVs2ydLu9_l01h6HAH9UQgShsJzMj5yYYdPDh-77KxMJkpmzuka3as/pub?gid=971264779&single=true&output=csv' 
 };
 
 const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzg8Uri9-dsiV8HKZzW8byvPMzqicNTCVbkgfx3nlv0MFtfgCuBluoB1Fh6E8FQJoqDcw/exec';
@@ -28,7 +28,7 @@ const TREND_METRICS = [
   { key: 'Temperature', label: 'Temperature', unit: '°F', goodDirection: null }
 ];
 
-let dataStore = { health: [], symptoms: [], mood: [], habits: [], screentime: [], workouts: [] };
+let dataStore = { health: [], symptoms: [], mood: [], habits: [], screentime: [], workouts: [], cycle: []  };
 let charts = {};
 
 // ====== INIT ======
@@ -53,13 +53,14 @@ function setupTabs() {
 }
 
 async function loadAll() {
-  const [health, symptoms, mood, habits, screentime, workouts] = await Promise.all([
+  const [health, symptoms, mood, habits, screentime, workouts, cycle] = await Promise.all([
     fetchCsv(CONFIG.health),
     fetchCsv(CONFIG.symptoms),
     fetchCsv(CONFIG.mood),
     fetchCsv(CONFIG.habits).catch(() => []),
     fetchCsv(CONFIG.screentime).catch(() => []),
-    fetchCsv(CONFIG.workouts).catch(() => [])
+    fetchCsv(CONFIG.workouts).catch(() => []),
+    fetchCsv(CONFIG.cycle).catch(() => [])
   ]);
   dataStore.health = health;
   dataStore.symptoms = symptoms;
@@ -67,6 +68,7 @@ async function loadAll() {
   dataStore.habits = habits;
   dataStore.screentime = screentime;
   dataStore.workouts = workouts;
+  dataStore.cycle = cycle
 
   renderOverview();
   renderHealthTab();
@@ -77,6 +79,7 @@ async function loadAll() {
   renderScreenTimeTab();
   renderWorkoutsTab();
   renderCorrelationsTab();
+  renderCycleSection()
 
   document.getElementById('corrThreshold').addEventListener('change', renderCorrelationsTab);
   document.getElementById('sigOnly').addEventListener('change', renderCorrelationsTab);
