@@ -24,7 +24,7 @@ const TREND_METRICS = [
   { key: 'Active Energy (kcal)', label: 'Active Energy', unit: 'kcal', goodDirection: 'up' },
   { key: 'Apple Exercise Time (min)', label: 'Exercise Time', unit: 'min', goodDirection: 'up' },
   { key: 'Weight (lb)', label: 'Weight', unit: 'lb', goodDirection: null },
-  { key: 'VO2 Max (ml/(kg·min))', label: 'VO2 Max', unit: '', goodDirection: 'up' }
+  { key: 'VO2 Max (ml/(kg·min))', label: 'VO2 Max', unit: '', goodDirection: 'up' },
   { key: 'Temperature', label: 'Temperature', unit: '°F', goodDirection: null }
 ];
 
