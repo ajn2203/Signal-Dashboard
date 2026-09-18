@@ -1076,3 +1076,56 @@ function shortDate(dateStr) {
   if (isNaN(d)) return dateStr;
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
+// ====== CYCLE TAB ======
+function buildCycleDayMap() {
+  // Find all "Cycle Start" == Yes rows to anchor each cycle, then compute
+  // cycle-day for every date between one start and the next.
+  const cycle = dataStore.cycle;
+  const starts = cycle
+    .filter(r => String(r['Cycle Start']).trim().toLowerCase() === 'yes')
+    .map(r => toDateKey(r['Start']))
+    .filter(Boolean)
+    .sort();
+
+  const dayMap = {}; // dateKey -> cycle day number
+  starts.forEach((startKey, i) => {
+    const startDate = new Date(startKey);
+    const nextStart = starts[i + 1] ? new Date(starts[i + 1]) : null;
+    let d = new Date(startDate);
+    let dayNum = 1;
+    while (!nextStart || d < nextStart) {
+      dayMap[toDateKey(d)] = dayNum;
+      dayNum++;
+      d.setDate(d.getDate() + 1);
+      if (dayNum > 45) break; // safety cap in case of missing next-cycle data
+    }
+  });
+  return dayMap;
+}
+
+function renderCycleTab() {
+  const cycle = dataStore.cycle;
+  const table = document.getElementById('cycleTable');
+  const card = document.getElementById('cycleCard');
+  if (!table) return; // section not on page yet
+
+  if (cycle.length === 0) {
+    if (card) card.innerHTML = '<p class="muted">No cycle data yet.</p>';
+    table.innerHTML = '<tr><td>No data</td></tr>';
+    return;
+  }
+
+  renderTable('cycleTable', cycle.slice(0, 100));
+
+  // Flow intensity over time, mapped to a numeric scale for charting
+  const FLOW_SCALE = { 'spotting': 0.5, 'light': 1, 'medium': 2, 'heavy': 3 };
+  const flowRows = cycle.filter(r => r['Data'] === 'Menstrual Flow');
+  const sorted = [...flowRows].sort((a, b) => new Date(a['Start']) - new Date(b['Start']));
+  const last60 = sorted.slice(-60);
+  const labels = last60.map(r => shortDate(r['Start']));
+  const values = last60.map(r => FLOW_SCALE[String(r['Value']).trim().toLowerCase()] ?? null);
+
+  drawLineChart('cycleFlowChart', labels, [
+    { label: 'Flow Intensity (0.5=Spotting, 1=Light, 2=Medium, 3=Heavy)', data: values, color: '#f472b6' }
+  ]);
+}
