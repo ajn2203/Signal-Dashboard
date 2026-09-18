@@ -104,15 +104,16 @@ function renderOverview() {
   if (health.length === 0) return;
 
   const latest = health[0];
-  const cards = [
-    { label: 'Resting HR', value: fmt(latest['Resting Heart Rate (count/min)'], 'bpm') },
-    { label: 'HRV', value: fmt(latest['Heart Rate Variability (ms)'], 'ms') },
-    { label: 'Sleep (Total)', value: fmt(latest['Sleep Analysis [Total] (hr)'], 'hr') },
-    { label: 'Steps', value: fmt(latest['Step Count (count)']) },
-    { label: 'Active Energy', value: fmt(latest['Active Energy (kcal)'], 'kcal') },
-    { label: 'VO2 Max', value: fmt(latest['VO2 Max (ml/(kg·min))']) },
-    { label: 'Weight', value: fmt(latest['Weight (lb)'], 'lb') }
-  ];
+const cards = [
+  { label: 'Resting HR', value: fmt(latest['Resting Heart Rate (count/min)'], 'bpm') },
+  { label: 'HRV', value: fmt(latest['Heart Rate Variability (ms)'], 'ms') },
+  { label: 'Sleep (Total)', value: fmt(latest['Sleep Analysis [Total] (hr)'], 'hr') },
+  { label: 'Steps', value: fmt(latest['Step Count (count)']) },
+  { label: 'Active Energy', value: fmt(latest['Active Energy (kcal)'], 'kcal') },
+  { label: 'VO2 Max', value: fmt(latest['VO2 Max (ml/(kg·min))']) },
+  { label: 'Weight', value: fmt(latest['Weight (lb)'], 'lb') },
+  { label: 'Temperature', value: fmt(latest['Temperature'], '°F') } 
+];
   document.getElementById('summaryCards').innerHTML = cards.map(c => `
     <div class="card">
       <div class="label">${c.label}</div>
