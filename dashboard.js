@@ -315,21 +315,27 @@ function renderTrendAlerts() {
   }).join('');
 }
 
+// ====== DIET CONSTANTS ======
+const DIET_KEYWORDS = ['calorie', 'protein', 'carb', 'fat', 'fiber', 'sugar', 'sodium', 'water'];
+
 // ====== HEALTH TAB ======
 function renderHealthTab() {
   const health = dataStore.health;
-  if (health.length === 0) return;
+  if (!health || health.length === 0) return;
 
   const cols = Object.keys(health[0]).filter(c => c !== 'Date/Time');
   const select = document.getElementById('metricSelect');
-  select.innerHTML = cols.map(c => `<option value="${c}">${c}</option>`).join('');
-  select.addEventListener('change', () => drawMetric(select.value));
-  drawMetric(cols[0]);
+  if (select) {
+    select.innerHTML = cols.map(c => `<option value="${c}">${c}</option>`).join('');
+    select.addEventListener('change', () => drawMetric(select.value));
+  }
+  if (cols.length > 0) drawMetric(cols[0]);
 
   renderTable('healthTable', health.slice(0, 100));
 }
 
 function drawMetric(metric) {
+  if (!dataStore.health || dataStore.health.length === 0) return;
   const last60 = dataStore.health.slice(0, 60).reverse();
   const labels = last60.map(r => shortDate(r['Date/Time']));
   drawLineChart('metricChart', labels, [
@@ -340,10 +346,8 @@ function drawMetric(metric) {
 // ====== DIET TAB ======
 function findDietCalorieColumn() {
   const health = dataStore.health;
-  if (health.length === 0) return null;
+  if (!health || health.length === 0) return null;
   const keys = Object.keys(health[0]);
-  // Looks for a dietary calorie column (e.g. "Dietary Energy (kcal)"),
-  // distinct from Active/Resting Energy which are activity-based.
   return keys.find(k => {
     const lower = k.toLowerCase();
     return lower.includes('calorie') || lower.includes('dietary energy');
@@ -354,7 +358,7 @@ function renderDietCalorieChart() {
   const health = dataStore.health;
   const calKey = findDietCalorieColumn();
   const card = document.getElementById('dietCalorieCard');
-  if (!calKey || health.length === 0) {
+  if (!calKey || !health || health.length === 0) {
     if (card) card.style.display = 'none';
     return;
   }
@@ -368,9 +372,8 @@ function renderDietCalorieChart() {
 
 function getDietColumns() {
   const health = dataStore.health;
-  if (!health || health.length === 0) {
-    return [];
-  }
+  if (!health || health.length === 0) return [];
+
   return Object.keys(health[0]).filter(col => {
     const lower = col.toLowerCase();
     const isDietKeyword = DIET_KEYWORDS.some(kw => lower.includes(kw));
@@ -381,20 +384,25 @@ function getDietColumns() {
 
 function renderDietTab() {
   const health = dataStore.health;
-  const dietCols = getDietColumns();
+  if (!health || health.length === 0) return;
 
-  if (health.length === 0 || dietCols.length === 0) {
-    document.getElementById('dietCards').innerHTML = '<p class="muted">No diet columns detected yet.</p>';
+  const dietCols = getDietColumns();
+  const dietCardsEl = document.getElementById('dietCards');
+
+  if (dietCols.length === 0) {
+    if (dietCardsEl) dietCardsEl.innerHTML = '<p class="muted">No diet columns detected yet.</p>';
     return;
   }
 
   const latest = health[0];
-  document.getElementById('dietCards').innerHTML = dietCols.slice(0, 6).map(col => `
-    <div class="card">
-      <div class="label">${col}</div>
-      <div class="value">${fmt(latest[col])}</div>
-    </div>
-  `).join('');
+  if (dietCardsEl) {
+    dietCardsEl.innerHTML = dietCols.slice(0, 6).map(col => `
+      <div class="card">
+        <div class="label">${col}</div>
+        <div class="value">${fmt(latest[col])}</div>
+      </div>
+    `).join('');
+  }
 
   const last30 = health.slice(0, 30).reverse();
   const labels = last30.map(r => shortDate(r['Date/Time']));
@@ -404,8 +412,9 @@ function renderDietTab() {
     data: last30.map(r => r[col]),
     color: palette[i % palette.length]
   }));
+
   drawLineChart('dietChart', labels, series);
-  renderDietCalorieChart(); 
+  renderDietCalorieChart();
 
   const dietRows = health.slice(0, 100).map(r => {
     const filtered = { 'Date/Time': r['Date/Time'] };
