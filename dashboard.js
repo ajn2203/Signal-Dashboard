@@ -79,7 +79,7 @@ async function loadAll() {
   renderScreenTimeTab();
   renderWorkoutsTab();
   renderCorrelationsTab();
-  renderCycleSection()
+  renderCycleTab();
 
   document.getElementById('corrThreshold').addEventListener('change', renderCorrelationsTab);
   document.getElementById('sigOnly').addEventListener('change', renderCorrelationsTab);
