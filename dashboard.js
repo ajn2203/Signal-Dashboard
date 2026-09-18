@@ -137,6 +137,9 @@ const cards = [
   drawLineChart('hrvChart', labels, [
     { label: 'HRV (ms)', data: last30.map(r => r['Heart Rate Variability (ms)']), color: '#a78bfa' }
   ]);
+  drawLineChart('tempChart', labels, [
+  { label: 'Temperature (°F)', data: last30.map(r => r['Temperature']), color: '#fb923c' }
+]);
 }
 // ====== SHORT-TERM BLIP DETECTION ======
 // Looks at the most recent `streakDays` calendar days individually (not
